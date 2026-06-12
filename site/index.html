@@ -14,65 +14,107 @@
   </head>
   <body>
     <main class="shell">
-      <section class="panel">
-        <p class="eyebrow">Static Lookup Tool</p>
-        <h1>PMA / PFA Error Calculator</h1>
-        <p class="intro">
-          Enter a mean and a standard deviation between <strong>0.01</strong> and
-          <strong>1.00</strong>. The tool rounds each input to the nearest table
-          entry and reads the matching error values from a local JSON file.
-        </p>
+      <div class="layout">
+        <section class="panel">
+          <p class="eyebrow">Static Lookup Tool</p>
+          <h1>PMA / PFA Error Calculator</h1>
+          <p class="intro">
+            Enter a mean and a standard deviation between <strong>0.01</strong> and
+            <strong>1.00</strong>. The tool rounds each input to the nearest table
+            entry and reads the matching error values from a local JSON file.
+          </p>
 
-        <form id="lookup-form" class="form">
-          <label class="field">
-            <span>Mean</span>
-            <input
-              id="mean"
-              name="mean"
-              type="number"
-              min="0.01"
-              max="1"
-              step="0.01"
-              placeholder="0.35"
-              required
-            />
-          </label>
+          <form id="lookup-form" class="form">
+            <label class="field">
+              <span>Mean</span>
+              <input
+                id="mean"
+                name="mean"
+                type="number"
+                min="0.01"
+                max="1"
+                step="0.01"
+                placeholder="0.35"
+                required
+              />
+            </label>
 
-          <label class="field">
-            <span>Standard Deviation</span>
-            <input
-              id="std"
-              name="std"
-              type="number"
-              min="0.01"
-              max="1"
-              step="0.01"
-              placeholder="0.12"
-              required
-            />
-          </label>
+            <label class="field">
+              <span>Standard Deviation</span>
+              <input
+                id="std"
+                name="std"
+                type="number"
+                min="0.01"
+                max="1"
+                step="0.01"
+                placeholder="0.12"
+                required
+              />
+            </label>
 
-          <button type="submit" id="lookup-button">Calculate Errors</button>
-        </form>
+            <button type="submit" id="lookup-button">Calculate Errors</button>
+          </form>
 
-        <p id="status" class="status" aria-live="polite">Loading lookup table…</p>
+          <p id="status" class="status" aria-live="polite">Loading lookup table…</p>
 
-        <section class="results" aria-live="polite">
-          <article class="result-card">
-            <p class="result-label">PMA</p>
-            <p id="pma-value" class="result-value">--</p>
-          </article>
+          <section class="results" aria-live="polite">
+            <article class="result-card">
+              <p class="result-label">PMA</p>
+              <p id="pma-value" class="result-value">--</p>
+            </article>
 
-          <article class="result-card">
-            <p class="result-label">PFA</p>
-            <p id="pfa-value" class="result-value">--</p>
-          </article>
+            <article class="result-card">
+              <p class="result-label">PFA</p>
+              <p id="pfa-value" class="result-value">--</p>
+            </article>
+          </section>
+
+          <p id="lookup-meta" class="meta">No lookup performed yet.</p>
         </section>
 
-        <p id="lookup-meta" class="meta">No lookup performed yet.</p>
-      </section>
-    </main>
+        <section class="panel plot-panel">
+          <div class="plot-header">
+            <div>
+              <p class="eyebrow">Interactive Surface</p>
+              <h2>Error Landscape</h2>
+            </div>
 
+            <div class="metric-toggle" role="group" aria-label="Select plot metric">
+              <button type="button" class="metric-button is-active" data-metric="PMA">PMA</button>
+              <button type="button" class="metric-button" data-metric="PFA">PFA</button>
+            </div>
+          </div>
+
+          <p class="intro plot-intro">
+            Hover the surface to inspect the current mean, standard deviation, and error
+            value. After a lookup, the chosen point is pinned on the plot.
+          </p>
+
+          <div id="plot" class="plot-frame" aria-label="Interactive 3D error plot"></div>
+
+          <section class="hover-grid" aria-live="polite">
+            <article class="hover-card">
+              <p class="result-label">Hovered Mean</p>
+              <p id="hover-mean" class="hover-value">--</p>
+            </article>
+
+            <article class="hover-card">
+              <p class="result-label">Hovered Std</p>
+              <p id="hover-std" class="hover-value">--</p>
+            </article>
+
+            <article class="hover-card">
+              <p id="hover-metric-label" class="result-label">Hovered PMA</p>
+              <p id="hover-value" class="hover-value">--</p>
+            </article>
+          </section>
+
+          <p id="plot-meta" class="meta">The surface loads from the local JSON table.</p>
+        </section>
+      </div>
+    </main>
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
     <script src="./script.js"></script>
   </body>
 </html>
