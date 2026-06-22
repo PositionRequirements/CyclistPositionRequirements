@@ -2,6 +2,7 @@
   --bg: #f6efe6;
   --ink: #102033;
   --muted: #5f6d7a;
+  --danger: #b42318;
   --panel: rgba(255, 252, 247, 0.82);
   --line: rgba(16, 32, 51, 0.12);
   --accent: #ea5d3c;
@@ -33,7 +34,7 @@ body {
   width: min(100%, 1440px);
   margin: 0 auto;
   display: grid;
-  grid-template-columns: minmax(320px, 760px) minmax(320px, 1fr);
+  grid-template-columns: 1fr;
   gap: 24px;
   align-items: start;
 }
@@ -45,6 +46,11 @@ body {
   background: var(--panel);
   backdrop-filter: blur(18px);
   box-shadow: var(--shadow);
+}
+
+.control-panel {
+  width: min(100%, 1200px);
+  justify-self: center;
 }
 
 .eyebrow,
@@ -82,6 +88,11 @@ h1 {
   margin-top: 30px;
 }
 
+.form-vertical {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: end;
+}
+
 .field {
   display: grid;
   gap: 8px;
@@ -100,6 +111,11 @@ h1 {
   font: inherit;
   color: var(--ink);
   background: rgba(255, 255, 255, 0.72);
+}
+
+.field input.is-invalid {
+  border-color: rgba(180, 35, 24, 0.5);
+  color: var(--danger);
 }
 
 .field input:focus,
@@ -177,93 +193,82 @@ button:disabled {
   color: var(--muted);
 }
 
-.plot-panel {
-  min-height: 100%;
-}
-
-.plot-header {
-  display: flex;
-  gap: 18px;
-  justify-content: space-between;
-  align-items: flex-start;
-}
-
 h2 {
   margin: 0;
   font-size: clamp(1.7rem, 3vw, 2.6rem);
   line-height: 1;
 }
 
-.metric-toggle {
-  display: inline-flex;
-  padding: 4px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.7);
+.filter-bar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 240px));
+  gap: 16px;
+  margin-top: 24px;
 }
 
-.metric-button {
-  margin: 0;
-  padding: 10px 16px;
-  border: 0;
-  border-radius: 999px;
-  font: inherit;
-  font-weight: 700;
-  color: var(--muted);
-  background: transparent;
-  box-shadow: none;
+.filter-field {
+  align-content: start;
 }
 
-.metric-button:hover {
-  transform: none;
-  box-shadow: none;
-}
-
-.metric-button.is-active {
-  color: #fff9f4;
-  background: linear-gradient(135deg, var(--accent-2), #23536f);
-}
-
-.plot-intro {
-  max-width: 65ch;
-}
-
-.plot-frame {
+.table-frame {
   width: 100%;
-  min-height: 560px;
+  max-height: 720px;
   margin-top: 24px;
   border: 1px solid var(--line);
   border-radius: 24px;
-  overflow: hidden;
+  overflow: auto;
   background:
     radial-gradient(circle at top left, rgba(46, 111, 149, 0.11), transparent 30%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.65), rgba(255, 255, 255, 0.42));
 }
 
-.hover-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
-  margin-top: 18px;
+.data-table {
+  width: 100%;
+  min-width: 900px;
+  border-collapse: collapse;
 }
 
-.hover-card {
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  background: rgba(255, 255, 255, 0.64);
+.data-table th,
+.data-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
 }
 
-.hover-value {
-  margin: 10px 0 0;
-  font-size: clamp(1.2rem, 2vw, 1.9rem);
-  font-weight: 700;
+.data-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(247, 240, 229, 0.96);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--accent-2);
 }
 
-@media (max-width: 1180px) {
-  .layout {
-    grid-template-columns: 1fr;
-  }
+.data-table tbody tr:hover {
+  background: rgba(46, 111, 149, 0.08);
+}
+
+.data-table tbody tr.is-selected {
+  background: rgba(234, 93, 60, 0.14);
+  box-shadow: inset 4px 0 0 var(--accent);
+}
+
+.is-over-limit {
+  color: var(--danger);
+}
+
+.mono,
+.scenario-cell {
+  font-family: "IBM Plex Mono", monospace;
+}
+
+.scenario-cell {
+  min-width: 190px;
+  line-height: 1.45;
 }
 
 @media (max-width: 720px) {
@@ -272,26 +277,10 @@ h2 {
     border-radius: 24px;
   }
 
+  .filter-bar,
   .form,
-  .results,
-  .hover-grid {
+  .form-vertical,
+  .results {
     grid-template-columns: 1fr;
-  }
-
-  .plot-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .metric-toggle {
-    width: 100%;
-  }
-
-  .metric-button {
-    flex: 1 1 0;
-  }
-
-  .plot-frame {
-    min-height: 420px;
   }
 }

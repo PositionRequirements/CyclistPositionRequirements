@@ -30,6 +30,7 @@ jobs:
         run: |
           mkdir -p dist
           cp -R site/. dist/
+          if [ -f errors2.json ]; then cp errors2.json dist/errors2.json; fi
           touch dist/.nojekyll
 
       - name: Upload static site artifact

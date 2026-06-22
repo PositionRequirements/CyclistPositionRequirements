@@ -1,38 +1,34 @@
 const form = document.querySelector("#lookup-form");
-const meanInput = document.querySelector("#mean");
+const maeInput = document.querySelector("#mae");
 const stdInput = document.querySelector("#std");
 const button = document.querySelector("#lookup-button");
 const status = document.querySelector("#status");
 const lookupMeta = document.querySelector("#lookup-meta");
-const plotMeta = document.querySelector("#plot-meta");
 const pmaValue = document.querySelector("#pma-value");
 const pfaValue = document.querySelector("#pfa-value");
-const plotElement = document.querySelector("#plot");
-const hoverMean = document.querySelector("#hover-mean");
-const hoverStd = document.querySelector("#hover-std");
-const hoverMetricLabel = document.querySelector("#hover-metric-label");
-const hoverValue = document.querySelector("#hover-value");
-const metricButtons = [...document.querySelectorAll(".metric-button")];
+const tableMeta = document.querySelector("#table-meta");
+const tableHead = document.querySelector("#table-head");
+const tableBody = document.querySelector("#table-body");
+const filterPmaInput = document.querySelector("#filter-pma");
+const filterPfaInput = document.querySelector("#filter-pfa");
 
-const MIN_VALUE = 0.01;
+const MIN_VALUE = 0;
 const MAX_VALUE = 1;
-const METRICS = ["PMA", "PFA"];
 
-let activeMetric = "PMA";
-let activeSelection = null;
-let surfaceData = null;
-let plotEventsBound = false;
+let normalizedData = null;
+let activeSelectionKey = null;
 
-const formatKey = (value) => (Math.round(value * 100) / 100).toFixed(2);
-const formatResult = (value) =>
+const formatLookupKey = (value) => (Math.round(value * 100) / 100).toFixed(2);
+const formatDisplayNumber = (value) =>
   Number(value).toLocaleString(undefined, {
     minimumFractionDigits: 0,
     maximumFractionDigits: 4
   });
+const escapeRowKey = (value) => value.replace(/[^a-zA-Z0-9_-]/g, "-");
 
 const setBusy = (isBusy) => {
   button.disabled = isBusy;
-  button.textContent = isBusy ? "Calculating…" : "Calculate Errors";
+  button.textContent = isBusy ? "Looking Up…" : "Calculate Errors";
 };
 
 const setStatus = (message, isError = false) => {
@@ -43,13 +39,8 @@ const setStatus = (message, isError = false) => {
 const resetResults = () => {
   pmaValue.textContent = "--";
   pfaValue.textContent = "--";
-};
-
-const setHoverReadout = ({ mean = "--", std = "--", value = "--" } = {}) => {
-  hoverMean.textContent = mean;
-  hoverStd.textContent = std;
-  hoverMetricLabel.textContent = `Hovered ${activeMetric}`;
-  hoverValue.textContent = value;
+  pmaValue.classList.remove("is-over-limit");
+  pfaValue.classList.remove("is-over-limit");
 };
 
 const parseInput = (input) => {
@@ -68,226 +59,243 @@ const parseInput = (input) => {
   return value;
 };
 
-const buildSurfaceData = (table) => {
-  const meanKeys = Object.keys(table).sort((left, right) => Number(left) - Number(right));
-  const stdKeys = Object.keys(table[meanKeys[0]]).sort(
-    (left, right) => Number(left) - Number(right)
-  );
+const parseFilterInput = (input) => {
+  const rawValue = input.value.trim();
 
-  const metrics = {};
-
-  for (const metric of METRICS) {
-    metrics[metric] = meanKeys.map((meanKey) =>
-      stdKeys.map((stdKey) => {
-        const entry = table[meanKey][stdKey];
-        return metric === "PFA" ? entry.PFA ?? entry.PMFA : entry.PMA;
-      })
-    );
+  if (!rawValue) {
+    input.classList.remove("is-invalid");
+    return null;
   }
 
-  return {
-    meanKeys,
-    meanValues: meanKeys.map(Number),
-    stdKeys,
-    stdValues: stdKeys.map(Number),
-    metrics
-  };
+  const value = Number(rawValue);
+  const isValid = Number.isFinite(value) && value >= MIN_VALUE && value <= MAX_VALUE;
+  input.classList.toggle("is-invalid", !isValid);
+
+  return isValid ? value : null;
 };
 
-const getMarkerTrace = () => {
-  if (!activeSelection) {
-    return {
-      type: "scatter3d",
-      mode: "markers",
-      x: [],
-      y: [],
-      z: [],
-      marker: {
-        size: 0.1,
-        color: "#ea5d3c"
-      },
-      hoverinfo: "skip",
-      showlegend: false
-    };
-  }
+const isScenarioValue = (value) =>
+  value &&
+  typeof value === "object" &&
+  (Number.isFinite(value.PMA) || Number.isFinite(value.PFA) || Number.isFinite(value.PMFA));
 
-  return {
-    type: "scatter3d",
-    mode: "markers",
-    x: [Number(activeSelection.stdKey)],
-    y: [Number(activeSelection.meanKey)],
-    z: [activeSelection[activeMetric]],
-    marker: {
-      size: 7,
-      color: "#ea5d3c",
-      line: {
-        color: "#fff8f2",
-        width: 4
-      }
-    },
-    name: "Lookup selection",
-    hovertemplate:
-      `Selected ${activeMetric}<br>` +
-      "Mean %{y:.2f}<br>" +
-      "Std %{x:.2f}<br>" +
-      `${activeMetric} %{z:.4f}` +
-      "<extra></extra>",
-    showlegend: false
-  };
+const computeMax = (values) => {
+  const finiteValues = values.filter(Number.isFinite);
+  return finiteValues.length ? Math.max(...finiteValues) : null;
 };
 
-const renderPlot = async () => {
-  if (!surfaceData) {
-    return;
-  }
+const normalizeTable = (table) => {
+  const rows = [];
+  const lookup = new Map();
+  const scenarioNames = new Set();
+  const metaFields = new Set();
 
-  if (!window.Plotly) {
-    plotMeta.textContent = "Plot library failed to load.";
-    return;
-  }
+  const maeKeys = Object.keys(table).sort((left, right) => Number(left) - Number(right));
 
-  const surfaceTrace = {
-    type: "surface",
-    x: surfaceData.stdValues,
-    y: surfaceData.meanValues,
-    z: surfaceData.metrics[activeMetric],
-    colorscale: [
-      [0, "#dce8f1"],
-      [0.35, "#89b0c9"],
-      [0.7, "#2e6f95"],
-      [1, "#ea5d3c"]
-    ],
-    contours: {
-      z: {
-        show: true,
-        color: "rgba(16, 32, 51, 0.18)",
-        width: 1
-      }
-    },
-    hovertemplate:
-      "Mean %{y:.2f}<br>" +
-      "Std %{x:.2f}<br>" +
-      `${activeMetric} %{z:.4f}` +
-      "<extra></extra>",
-    showscale: false
-  };
+  for (const maeKey of maeKeys) {
+    const stdEntries = table[maeKey];
+    const stdKeys = Object.keys(stdEntries).sort((left, right) => Number(left) - Number(right));
 
-  const layout = {
-    margin: {
-      l: 0,
-      r: 0,
-      b: 0,
-      t: 0
-    },
-    paper_bgcolor: "rgba(0,0,0,0)",
-    plot_bgcolor: "rgba(0,0,0,0)",
-    scene: {
-      bgcolor: "rgba(0,0,0,0)",
-      aspectratio: {
-        x: 1,
-        y: 1,
-        z: 0.7
-      },
-      xaxis: {
-        title: "Std",
-        range: [MIN_VALUE, MAX_VALUE],
-        gridcolor: "rgba(16, 32, 51, 0.12)",
-        zerolinecolor: "rgba(16, 32, 51, 0.12)"
-      },
-      yaxis: {
-        title: "Mean",
-        range: [MIN_VALUE, MAX_VALUE],
-        gridcolor: "rgba(16, 32, 51, 0.12)",
-        zerolinecolor: "rgba(16, 32, 51, 0.12)"
-      },
-      zaxis: {
-        title: activeMetric,
-        gridcolor: "rgba(16, 32, 51, 0.12)",
-        zerolinecolor: "rgba(16, 32, 51, 0.12)"
-      },
-      camera: {
-        eye: {
-          x: 1.55,
-          y: -1.7,
-          z: 0.85
+    for (const stdKey of stdKeys) {
+      const rawEntry = stdEntries[stdKey];
+      const scenarios = {};
+      const meta = {};
+
+      for (const [key, value] of Object.entries(rawEntry)) {
+        if (isScenarioValue(value)) {
+          scenarios[key] = {
+            PMA: Number.isFinite(value.PMA) ? Number(value.PMA) : null,
+            PFA: Number.isFinite(value.PFA ?? value.PMFA) ? Number(value.PFA ?? value.PMFA) : null
+          };
+          scenarioNames.add(key);
+          continue;
         }
+
+        meta[key] = value;
+        metaFields.add(key);
       }
+
+      const scenarioValues = Object.values(scenarios);
+      const maxPMA = computeMax(scenarioValues.map((scenario) => scenario.PMA));
+      const maxPFA = computeMax(scenarioValues.map((scenario) => scenario.PFA));
+      const normalizedMae = formatLookupKey(Number(maeKey));
+      const normalizedStd = formatLookupKey(Number(stdKey));
+      const rowKey = `${normalizedMae}-${normalizedStd}`;
+
+      const row = {
+        key: rowKey,
+        maeKey,
+        stdKey,
+        normalizedMae,
+        normalizedStd,
+        meta,
+        scenarios,
+        scenarioCount: scenarioValues.length,
+        maxPMA,
+        maxPFA
+      };
+
+      rows.push(row);
+      lookup.set(rowKey, row);
     }
-  };
-
-  const config = {
-    responsive: true,
-    displaylogo: false,
-    modeBarButtonsToRemove: ["lasso3d", "select2d", "toggleSpikelines"],
-    toImageButtonOptions: {
-      format: "png",
-      filename: "pma-pfa-surface"
-    }
-  };
-
-  await window.Plotly.react(plotElement, [surfaceTrace, getMarkerTrace()], layout, config);
-
-  if (!plotEventsBound) {
-    plotElement.on("plotly_hover", (event) => {
-      const [point] = event.points;
-
-      if (!point) {
-        return;
-      }
-
-      setHoverReadout({
-        mean: Number(point.y).toFixed(2),
-        std: Number(point.x).toFixed(2),
-        value: formatResult(point.z)
-      });
-    });
-
-    plotElement.on("plotly_unhover", () => {
-      if (activeSelection) {
-        setHoverReadout({
-          mean: activeSelection.meanKey,
-          std: activeSelection.stdKey,
-          value: formatResult(activeSelection[activeMetric])
-        });
-        return;
-      }
-
-      setHoverReadout();
-    });
-
-    plotEventsBound = true;
   }
 
-  plotMeta.textContent = activeSelection
-    ? `Highlighted lookup at mean ${activeSelection.meanKey}, std ${activeSelection.stdKey}.`
-    : "Hover the surface to inspect values from the local JSON table.";
+  return {
+    rows,
+    lookup,
+    scenarioNames: [...scenarioNames].sort((left, right) => left.localeCompare(right)),
+    metaFields: [...metaFields].sort((left, right) => left.localeCompare(right))
+  };
 };
 
-const setMetric = async (metric) => {
-  if (!METRICS.includes(metric)) {
+const createCell = (tagName, text, className = "") => {
+  const cell = document.createElement(tagName);
+  cell.textContent = text;
+
+  if (className) {
+    cell.className = className;
+  }
+
+  return cell;
+};
+
+const getActiveFilters = () => ({
+  maxPMA: parseFilterInput(filterPmaInput),
+  maxPFA: parseFilterInput(filterPfaInput)
+});
+
+const rowPassesFilters = (row, filters) => {
+  const passesPMA = filters.maxPMA == null || row.maxPMA == null || row.maxPMA <= filters.maxPMA;
+  const passesPFA = filters.maxPFA == null || row.maxPFA == null || row.maxPFA <= filters.maxPFA;
+  return passesPMA && passesPFA;
+};
+
+const getRowLimitState = (row, filters) => ({
+  exceedsPMA: filters.maxPMA != null && row.maxPMA != null && row.maxPMA > filters.maxPMA,
+  exceedsPFA: filters.maxPFA != null && row.maxPFA != null && row.maxPFA > filters.maxPFA
+});
+
+const renderTable = () => {
+  if (!normalizedData) {
     return;
   }
 
-  activeMetric = metric;
+  const filters = getActiveFilters();
+  tableHead.textContent = "";
+  tableBody.textContent = "";
 
-  for (const metricButton of metricButtons) {
-    metricButton.classList.toggle("is-active", metricButton.dataset.metric === metric);
+  const headerRow = document.createElement("tr");
+  const headers = [
+    "MAE",
+    "Std",
+    ...normalizedData.metaFields,
+    "Max PMA",
+    "Max PFA",
+    ...normalizedData.scenarioNames
+  ];
+
+  for (const header of headers) {
+    headerRow.append(createCell("th", header));
   }
 
-  if (activeSelection) {
-    setHoverReadout({
-      mean: activeSelection.meanKey,
-      std: activeSelection.stdKey,
-      value: formatResult(activeSelection[metric])
-    });
-  } else {
-    setHoverReadout();
+  tableHead.append(headerRow);
+
+  const fragment = document.createDocumentFragment();
+  let shownRows = 0;
+
+  for (const row of normalizedData.rows) {
+    const passesFilters = rowPassesFilters(row, filters);
+    const shouldForceVisible = activeSelectionKey === row.key;
+
+    if (!passesFilters && !shouldForceVisible) {
+      continue;
+    }
+
+    shownRows += 1;
+    const tr = document.createElement("tr");
+    tr.id = `row-${escapeRowKey(row.key)}`;
+    tr.dataset.lookupKey = row.key;
+    const limitState = getRowLimitState(row, filters);
+
+    tr.append(createCell("td", row.normalizedMae, "mono"));
+    tr.append(createCell("td", row.normalizedStd, "mono"));
+
+    for (const metaField of normalizedData.metaFields) {
+      const value = row.meta[metaField];
+      tr.append(createCell("td", value == null ? "—" : String(value), "mono"));
+    }
+
+    const maxPmaCell = createCell(
+      "td",
+      row.maxPMA == null ? "—" : formatDisplayNumber(row.maxPMA),
+      "mono"
+    );
+    const maxPfaCell = createCell(
+      "td",
+      row.maxPFA == null ? "—" : formatDisplayNumber(row.maxPFA),
+      "mono"
+    );
+
+    if (limitState.exceedsPMA) {
+      maxPmaCell.classList.add("is-over-limit");
+    }
+
+    if (limitState.exceedsPFA) {
+      maxPfaCell.classList.add("is-over-limit");
+    }
+
+    tr.append(maxPmaCell);
+    tr.append(maxPfaCell);
+
+    for (const scenarioName of normalizedData.scenarioNames) {
+      const scenario = row.scenarios[scenarioName];
+      const text = scenario
+        ? `PMA ${
+            scenario.PMA == null ? "—" : formatDisplayNumber(scenario.PMA)
+          } / PFA ${scenario.PFA == null ? "—" : formatDisplayNumber(scenario.PFA)}`
+        : "—";
+
+      tr.append(createCell("td", text, "scenario-cell"));
+    }
+
+    fragment.append(tr);
   }
 
-  await renderPlot();
+  tableBody.append(fragment);
+  highlightRow(activeSelectionKey);
+
+  tableMeta.textContent =
+    shownRows === normalizedData.rows.length
+      ? `${shownRows} rows loaded.`
+      : `${shownRows} of ${normalizedData.rows.length} rows shown.`;
 };
 
-const lookupTablePromise = fetch("./errors.json").then(async (response) => {
+const highlightRow = (lookupKey) => {
+  const previousRow = tableBody.querySelector(".is-selected");
+
+  if (previousRow) {
+    previousRow.classList.remove("is-selected");
+  }
+
+  if (!lookupKey) {
+    return;
+  }
+
+  const row = document.querySelector(`#row-${escapeRowKey(lookupKey)}`);
+
+  if (!row) {
+    return;
+  }
+
+  row.classList.add("is-selected");
+  row.scrollIntoView({
+    behavior: "smooth",
+    block: "center",
+    inline: "nearest"
+  });
+};
+
+const lookupTablePromise = fetch("./errors2.json").then(async (response) => {
   if (!response.ok) {
     throw new Error(`Lookup table request failed with ${response.status}.`);
   }
@@ -296,19 +304,45 @@ const lookupTablePromise = fetch("./errors.json").then(async (response) => {
 });
 
 lookupTablePromise
-  .then(async (table) => {
-    surfaceData = buildSurfaceData(table);
+  .then((table) => {
+    normalizedData = normalizeTable(table);
+    renderTable();
     setStatus("Lookup table ready.");
-    await renderPlot();
   })
   .catch((error) => {
     setStatus(error.message, true);
-    plotMeta.textContent = error.message;
+    tableMeta.textContent = error.message;
   });
 
-for (const metricButton of metricButtons) {
-  metricButton.addEventListener("click", () => {
-    void setMetric(metricButton.dataset.metric);
+const updateSelectedValueStyling = (row) => {
+  if (!row) {
+    pmaValue.classList.remove("is-over-limit");
+    pfaValue.classList.remove("is-over-limit");
+    return;
+  }
+
+  const filters = getActiveFilters();
+  const limitState = getRowLimitState(row, filters);
+  pmaValue.classList.toggle("is-over-limit", limitState.exceedsPMA);
+  pfaValue.classList.toggle("is-over-limit", limitState.exceedsPFA);
+};
+
+const refreshTableWithFilters = () => {
+  if (!normalizedData) {
+    return;
+  }
+
+  renderTable();
+
+  if (activeSelectionKey) {
+    const row = normalizedData.lookup.get(activeSelectionKey);
+    updateSelectedValueStyling(row);
+  }
+};
+
+for (const filterInput of [filterPmaInput, filterPfaInput]) {
+  filterInput.addEventListener("input", () => {
+    refreshTableWithFilters();
   });
 }
 
@@ -317,53 +351,48 @@ form.addEventListener("submit", async (event) => {
   setBusy(true);
 
   try {
-    const mean = parseInput(meanInput);
+    const mae = parseInput(maeInput);
     const std = parseInput(stdInput);
-    const meanKey = formatKey(mean);
-    const stdKey = formatKey(std);
+    const lookupKey = `${formatLookupKey(mae)}-${formatLookupKey(std)}`;
     const table = await lookupTablePromise;
-    const entry = table[meanKey]?.[stdKey];
 
-    if (!entry) {
-      throw new Error(`No lookup entry found for mean ${meanKey} and std ${stdKey}.`);
+    if (!normalizedData) {
+      normalizedData = normalizeTable(table);
+      renderTable();
     }
 
-    const pma = entry.PMA;
-    const pfa = entry.PFA ?? entry.PMFA;
+    const row = normalizedData.lookup.get(lookupKey);
 
-    if (typeof pma !== "number" || typeof pfa !== "number") {
-      throw new Error(`Lookup entry for mean ${meanKey} and std ${stdKey} is malformed.`);
+    if (!row) {
+      throw new Error(
+        `No lookup entry found for MAE ${formatLookupKey(mae)} and std ${formatLookupKey(std)}.`
+      );
     }
 
-    activeSelection = {
-      meanKey,
-      stdKey,
-      PMA: pma,
-      PFA: pfa
-    };
-
-    pmaValue.textContent = formatResult(pma);
-    pfaValue.textContent = formatResult(pfa);
-    lookupMeta.textContent = `Lookup used mean ${meanKey} and standard deviation ${stdKey}.`;
-    setHoverReadout({
-      mean: meanKey,
-      std: stdKey,
-      value: formatResult(activeSelection[activeMetric])
-    });
+    activeSelectionKey = lookupKey;
+    pmaValue.textContent =
+      row.maxPMA == null ? "—" : formatDisplayNumber(row.maxPMA);
+    pfaValue.textContent =
+      row.maxPFA == null ? "—" : formatDisplayNumber(row.maxPFA);
+    updateSelectedValueStyling(row);
+    lookupMeta.textContent =
+      `Lookup used MAE ${row.normalizedMae} and standard deviation ${row.normalizedStd}.`;
 
     const rounded =
-      Math.abs(mean - Number(meanKey)) > Number.EPSILON ||
-      Math.abs(std - Number(stdKey)) > Number.EPSILON;
+      Math.abs(mae - Number(row.normalizedMae)) > Number.EPSILON ||
+      Math.abs(std - Number(row.normalizedStd)) > Number.EPSILON;
+
     setStatus(
       rounded
         ? "Inputs were rounded to the nearest 0.01 table entry."
         : "Values loaded from the local JSON lookup table."
     );
 
-    await renderPlot();
+    renderTable();
   } catch (error) {
     setStatus(error.message, true);
-    if (!activeSelection) {
+
+    if (!activeSelectionKey) {
       resetResults();
       lookupMeta.textContent = "No lookup performed yet.";
     }

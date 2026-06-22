@@ -15,23 +15,21 @@
   <body>
     <main class="shell">
       <div class="layout">
-        <section class="panel">
-          <p class="eyebrow">Static Lookup Tool</p>
+        <section class="panel control-panel">
           <h1>PMA / PFA Error Calculator</h1>
           <p class="intro">
-            Enter a mean and a standard deviation between <strong>0.01</strong> and
-            <strong>1.00</strong>. The tool rounds each input to the nearest table
-            entry and reads the matching error values from a local JSON file.
+            Enter a mean average error and a standard deviation between
+            <strong>0.00</strong> and <strong>1.00</strong>. The tool returns the maximum PMA and PFA across all scenarios in for the entered values.
           </p>
 
-          <form id="lookup-form" class="form">
+          <form id="lookup-form" class="form form-vertical">
             <label class="field">
-              <span>Mean</span>
+              <span>Mean Average Error</span>
               <input
-                id="mean"
-                name="mean"
+                id="mae"
+                name="mae"
                 type="number"
-                min="0.01"
+                min="0"
                 max="1"
                 step="0.01"
                 placeholder="0.35"
@@ -45,7 +43,7 @@
                 id="std"
                 name="std"
                 type="number"
-                min="0.01"
+                min="0"
                 max="1"
                 step="0.01"
                 placeholder="0.12"
@@ -60,61 +58,71 @@
 
           <section class="results" aria-live="polite">
             <article class="result-card">
-              <p class="result-label">PMA</p>
+              <p class="result-label">Maximum PMA</p>
               <p id="pma-value" class="result-value">--</p>
             </article>
 
             <article class="result-card">
-              <p class="result-label">PFA</p>
+              <p class="result-label">Maximum PFA</p>
               <p id="pfa-value" class="result-value">--</p>
             </article>
+
+            <!-- <article class="result-card">
+              <p class="result-label">Scenario Count</p>
+              <p id="scenario-count" class="result-value">--</p>
+            </article> -->
           </section>
 
           <p id="lookup-meta" class="meta">No lookup performed yet.</p>
         </section>
 
-        <section class="panel plot-panel">
-          <div class="plot-header">
-            <div>
-              <p class="eyebrow">Interactive Surface</p>
-              <h2>Error Landscape</h2>
-            </div>
-
-            <div class="metric-toggle" role="group" aria-label="Select plot metric">
-              <button type="button" class="metric-button is-active" data-metric="PMA">PMA</button>
-              <button type="button" class="metric-button" data-metric="PFA">PFA</button>
-            </div>
-          </div>
-
-          <p class="intro plot-intro">
-            Hover the surface to inspect the current mean, standard deviation, and error
-            value. After a lookup, the chosen point is pinned on the plot.
+        <section class="panel table-panel">
+          <p class="eyebrow">Lookup Table</p>
+          <h2>Scenario Values</h2>
+          <p class="intro table-intro">
+            Every row represents one MAE/std entry. The matched row is highlighted and
+            scrolled into view after a lookup.
           </p>
 
-          <div id="plot" class="plot-frame" aria-label="Interactive 3D error plot"></div>
+          <div class="filter-bar" aria-label="Table filters">
+            <label class="field filter-field">
+              <span>Max PMA Filter</span>
+              <input
+                id="filter-pma"
+                name="filterPma"
+                type="number"
+                min="0"
+                max="1"
+                step="0.01"
+                placeholder="No limit"
+              />
+            </label>
 
-          <section class="hover-grid" aria-live="polite">
-            <article class="hover-card">
-              <p class="result-label">Hovered Mean</p>
-              <p id="hover-mean" class="hover-value">--</p>
-            </article>
+            <label class="field filter-field">
+              <span>Max PFA Filter</span>
+              <input
+                id="filter-pfa"
+                name="filterPfa"
+                type="number"
+                min="0"
+                max="1"
+                step="0.01"
+                placeholder="No limit"
+              />
+            </label>
+          </div>
 
-            <article class="hover-card">
-              <p class="result-label">Hovered Std</p>
-              <p id="hover-std" class="hover-value">--</p>
-            </article>
+          <div id="table-wrapper" class="table-frame">
+            <table class="data-table">
+              <thead id="table-head"></thead>
+              <tbody id="table-body"></tbody>
+            </table>
+          </div>
 
-            <article class="hover-card">
-              <p id="hover-metric-label" class="result-label">Hovered PMA</p>
-              <p id="hover-value" class="hover-value">--</p>
-            </article>
-          </section>
-
-          <p id="plot-meta" class="meta">The surface loads from the local JSON table.</p>
+          <p id="table-meta" class="meta">The table loads from the local JSON file.</p>
         </section>
       </div>
     </main>
-    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
     <script src="./script.js"></script>
   </body>
 </html>
