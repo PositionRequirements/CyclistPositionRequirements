@@ -385,7 +385,7 @@ form.addEventListener("submit", async (event) => {
     setStatus(
       rounded
         ? "Inputs were rounded to the nearest 0.01 table entry."
-        : "Values loaded from the local JSON lookup table."
+        : "Values loaded."
     );
 
     renderTable();
