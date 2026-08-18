@@ -4,6 +4,7 @@ const stdInput = document.querySelector("#std");
 const button = document.querySelector("#lookup-button");
 const status = document.querySelector("#status");
 const lookupMeta = document.querySelector("#lookup-meta");
+const referenceText = document.querySelector("#reference-text");
 const pmaValue = document.querySelector("#pma-value");
 const pfaValue = document.querySelector("#pfa-value");
 const tableMeta = document.querySelector("#table-meta");
@@ -14,6 +15,12 @@ const filterPfaInput = document.querySelector("#filter-pfa");
 
 const MIN_VALUE = 0;
 const MAX_VALUE = 1;
+const SCENARIO_ORDER = [
+  "car50-bike15",
+  "car50-bike25",
+  "car30-bike15",
+  "car30-bike25"
+];
 
 let normalizedData = null;
 let activeSelectionKey = null;
@@ -35,6 +42,21 @@ const setStatus = (message, isError = false) => {
   status.textContent = message;
   status.style.color = isError ? "#b42318" : "";
 };
+
+fetch("../reference.txt")
+  .then((response) => {
+    if (!response.ok) {
+      throw new Error(`Reference request failed with ${response.status}.`);
+    }
+
+    return response.text();
+  })
+  .then((reference) => {
+    referenceText.textContent = `If you use this tool, please reference it as: ${reference.trim()}`;
+  })
+  .catch(() => {
+    referenceText.textContent = "Reference unavailable.";
+  });
 
 const resetResults = () => {
   pmaValue.textContent = "--";
@@ -143,7 +165,12 @@ const normalizeTable = (table) => {
   return {
     rows,
     lookup,
-    scenarioNames: [...scenarioNames].sort((left, right) => left.localeCompare(right)),
+    scenarioNames: [
+      ...SCENARIO_ORDER.filter((scenarioName) => scenarioNames.has(scenarioName)),
+      ...[...scenarioNames]
+        .filter((scenarioName) => !SCENARIO_ORDER.includes(scenarioName))
+        .sort((left, right) => left.localeCompare(right))
+    ],
     metaFields: [...metaFields].sort((left, right) => left.localeCompare(right))
   };
 };

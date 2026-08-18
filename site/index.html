@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PMA / PFA Error Lookup</title>
+    <title>Missed Alarm Probability (PMA) / False Alarm Probability (PFA) Error Lookup</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -16,9 +16,9 @@
     <main class="shell">
       <div class="layout">
         <section class="panel control-panel">
-          <h1>PMA / PFA Error Calculator</h1>
+          <h1>Missed Alarm Probability (PMA) / False Alarm Probability (PFA) Error Calculator</h1>
           <p class="intro">
-            Enter a mean average error and a standard deviation between
+            Enter a mean average error (MAE) and a standard deviation (std) between
             <strong>0.00</strong> and <strong>1.00</strong>. The tool returns the maximum PMA and PFA across all scenarios in for the entered values.
           </p>
 
@@ -77,15 +77,14 @@
 
           <aside class="reference-note">
             <p class="reference-title">Reference</p>
-            <p class="reference-text">
-              If you use this tool, please reference it as: <strong>Anonymous Authors</strong>
+            <p id="reference-text" class="reference-text">
+              Loading reference…
             </p>
           </aside>
         </section>
 
         <section class="panel table-panel">
-          <p class="eyebrow">Lookup Table</p>
-          <h2>Scenario Values</h2>
+          <h2>Lookup Table</h2>
           <p class="intro table-intro">
             Every row represents one MAE/std entry. The matched row is highlighted and
             scrolled into view after a lookup.
