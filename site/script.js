@@ -4,7 +4,6 @@ const stdInput = document.querySelector("#std");
 const button = document.querySelector("#lookup-button");
 const status = document.querySelector("#status");
 const lookupMeta = document.querySelector("#lookup-meta");
-const referenceText = document.querySelector("#reference-text");
 const pmaValue = document.querySelector("#pma-value");
 const pfaValue = document.querySelector("#pfa-value");
 const tableMeta = document.querySelector("#table-meta");
@@ -42,21 +41,6 @@ const setStatus = (message, isError = false) => {
   status.textContent = message;
   status.style.color = isError ? "#b42318" : "";
 };
-
-fetch("../reference.txt")
-  .then((response) => {
-    if (!response.ok) {
-      throw new Error(`Reference request failed with ${response.status}.`);
-    }
-
-    return response.text();
-  })
-  .then((reference) => {
-    referenceText.textContent = `If you use this tool, please reference it as: ${reference.trim()}`;
-  })
-  .catch(() => {
-    referenceText.textContent = "Reference unavailable.";
-  });
 
 const resetResults = () => {
   pmaValue.textContent = "--";
